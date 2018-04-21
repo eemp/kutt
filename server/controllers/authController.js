@@ -59,7 +59,7 @@ exports.authApikey = authenticate('localapikey', 'API key is not correct.', fals
 /* reCaptcha controller */
 exports.recaptcha = async (req, res, next) => {
   if (!req.user) {
-    const isReCaptchaValid = await axios({
+    const isReCaptchaValid = !config.RECAPTCHA_SECRET_KEY || await axios({
       method: 'post',
       url: 'https://www.google.com/recaptcha/api/siteverify',
       headers: {
@@ -70,8 +70,8 @@ exports.recaptcha = async (req, res, next) => {
         response: req.body.reCaptchaToken,
         remoteip: req.realIp,
       },
-    });
-    if (!isReCaptchaValid.data.success) {
+    }).then(data => _.get(data, 'success'));
+    if (!isReCaptchaValid) {
       return res.status(401).json({ error: 'reCAPTCHA is not valid. Try again.' });
     }
   }

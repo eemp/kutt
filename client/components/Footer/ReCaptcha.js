@@ -8,7 +8,8 @@ const Recaptcha = styled.div`
 `;
 
 const ReCaptcha = () => (
-  <Recaptcha
+  config.RECAPTCHA_SITE_KEY
+  ? <Recaptcha
     id="g-recaptcha"
     className="g-recaptcha"
     data-sitekey={config.RECAPTCHA_SITE_KEY}
@@ -16,6 +17,7 @@ const ReCaptcha = () => (
     data-size="invisible"
     data-badge="inline"
   />
+  : null
 );
 
 export default ReCaptcha;

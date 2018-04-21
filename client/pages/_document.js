@@ -3,6 +3,8 @@ import React from 'react';
 import Document, { Head, Main, NextScript } from 'next/document';
 import { ServerStyleSheet } from 'styled-components';
 
+import config from '../config';
+
 const style = {
   margin: 0,
   backgroundColor: '#f3f3f3',
@@ -53,14 +55,16 @@ class AppDocument extends Document {
 
           {this.props.styleTags}
 
-          <script
+          {config.RECAPTCHA_SITE_KEY && <script
             dangerouslySetInnerHTML={{
               __html: `window.recaptchaCallback = function() { window.isCaptchaReady = true; }`,
             }}
-          />
+          />}
 
-          <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer />
-          <script src="/analytics.js" />
+          {config.RECAPTCHA_SITE_KEY && <script
+            src="https://www.google.com/recaptcha/api.js?render=explicit"
+            async defer
+          />}
         </Head>
         <body style={style}>
           <Main />
