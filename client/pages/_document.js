@@ -55,16 +55,17 @@ class AppDocument extends Document {
 
           {this.props.styleTags}
 
-          {config.RECAPTCHA_SITE_KEY && <script
-            dangerouslySetInnerHTML={{
-              __html: `window.recaptchaCallback = function() { window.isCaptchaReady = true; }`,
-            }}
-          />}
+          {config.RECAPTCHA_SITE_KEY && (
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.recaptchaCallback = function() { window.isCaptchaReady = true; }`,
+              }}
+            />
+          )}
 
-          {config.RECAPTCHA_SITE_KEY && <script
-            src="https://www.google.com/recaptcha/api.js?render=explicit"
-            async defer
-          />}
+          {config.RECAPTCHA_SITE_KEY && (
+            <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer />
+          )}
         </Head>
         <body style={style}>
           <Main />
