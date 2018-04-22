@@ -1,8 +1,14 @@
 module.exports = {
   PORT: 3000,
 
-  /* The domain that this website is on */
-  DEFAULT_DOMAIN: 'kutt.it',
+  /* The domain that this website is on, must be absolute starting from protocol */
+  DEFAULT_DOMAIN: 'https://kutt.it',
+
+  /* Datasource details */
+  DS_CONNECTOR_NAME: 'sqlite',
+  DS_CONFIG: {
+    file_name: './data/dev.sqlite3',
+  },
 
   /* Neo4j database credential details */
   DB_URI: 'bolt://localhost',

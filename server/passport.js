@@ -5,7 +5,7 @@ const LocalStratergy = require('passport-local').Strategy;
 const LocalAPIKeyStrategy = require('passport-localapikey-update').Strategy;
 const bcrypt = require('bcryptjs');
 const config = require('./config');
-const { getUser } = require('./db/user');
+const { getUser } = require('./models/user'); // TODO: fix
 
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromHeader('authorization'),

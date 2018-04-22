@@ -1,0 +1,20 @@
+{
+  "name": "User",
+  "properties": {
+    "id": {
+      "type": "number"
+    },
+    "email": {
+      "type": "string",
+      "required": true
+    },
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "password": {
+      "required": true,
+      "type": "string"
+    }
+  }
+}

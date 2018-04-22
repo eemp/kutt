@@ -6,6 +6,8 @@ const Raven = require('raven');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const passport = require('passport');
+const { URL } = require('url');
+
 const { validateBody, validationCriterias } = require('./controllers/validateBodyController');
 const auth = require('./controllers/authController');
 const url = require('./controllers/urlController');
@@ -33,8 +35,13 @@ const dev = process.env.NODE_ENV !== 'production';
 const app = nextApp({ dir: './client', dev });
 const handle = app.getRequestHandler();
 
+const { DS_CONNECTOR_NAME, DS_CONFIG } = config;
+const dataSource = require('./dataSource')(DS_CONNECTOR_NAME, DS_CONFIG);
+const defineModels = require('./defineModels');
+
 app.prepare().then(() => {
   const server = express();
+  server.models = defineModels(dataSource);
 
   server.set('trust proxy', true);
   server.use(helmet());
@@ -54,11 +61,13 @@ app.prepare().then(() => {
 
   server.use((req, res, next) => {
     const { headers, path } = req;
+    const defaultUrl = new URL(config.DEFAULT_DOMAIN);
     if (
-      headers.host !== config.DEFAULT_DOMAIN &&
+      headers.host !== defaultUrl.host &&
       (path === '/' || url.preservedUrls.some(item => item === path.replace('/', '')))
     ) {
-      return res.redirect(`http://${config.DEFAULT_DOMAIN + path}`);
+      const redirectUrl = new URL(path, config.DEFAULT_DOMAIN);
+      return res.redirect(redirectUrl.toString());
     }
     return next();
   });

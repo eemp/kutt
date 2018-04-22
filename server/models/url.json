@@ -1,0 +1,25 @@
+{
+  "name": "Url",
+  "properties": {
+    "id": {
+      "type": "number"
+    },
+    "creator": {
+      "type": "number"
+    },
+    "name": {
+      "type": "string"
+    },
+    "password": {
+      "type": "string"
+    },
+    "short": {
+      "required": true,
+      "type": "string"
+    },
+    "target": {
+      "required": true,
+      "type": "string"
+    }
+  }
+}

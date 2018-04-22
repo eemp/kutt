@@ -105,9 +105,17 @@ Body (or query for GET request)
   * `id`: ID of the shortened URL.
   * `domain` (optional):  Required if a custom domain is used for short URL.
 
+## Changes
+
+* replace neo4j usage with loopback datasource juggler (remember loopback LICENSE)
+* make google safe browsing feature opt-in
+* make google recaptcha feature opt-in
+* stop tracking user country, avoid using geoip... fewer privacy issues, etc
+
 ## Contributing
 Pull requests are welcome. You'll probably find lots of improvements to be made.
 
 Open issues for feedback, needed features, reporting bugs or discussing ideas.
 
 Special thanks to [Thomas](https://github.com/trgwii) and [Muthu](https://github.com/MKRhere). Logo design by [Muthu](https://github.com/MKRhere)
+

@@ -1,0 +1,21 @@
+{
+  "name": "Visit",
+  "properties": {
+    "id": {
+      "type": "number"
+    },
+    "browser": {
+      "type": "string"
+    },
+    "os": {
+      "type": "string"
+    },
+    "referrer": {
+      "type": "string"
+    },
+    "url": {
+      "required": true,
+      "type": "string"
+    }
+  }
+}

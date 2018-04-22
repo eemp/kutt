@@ -4,11 +4,13 @@
   "description": "Modern URL shortener.",
   "main": "./server/server.js",
   "scripts": {
-    "dev": "node ./server/server.js",
     "build": "next build ./client",
+    "dev": "node ./server/server.js",
+    "ds-autoupdate": "node server/scripts/autoupdate.js",
+    "lint": "eslint . --fix",
+    "lint:nofix": "eslint .",
     "start": "NODE_ENV=production node ./server/server.js",
-    "lint": "./node_modules/.bin/eslint . --fix",
-    "lint:nofix": "./node_modules/.bin/eslint ."
+    "watch:lint": "esw -w --changed ."
   },
   "husky": {
     "hooks": {
@@ -43,6 +45,8 @@
     "jsonwebtoken": "^8.1.0",
     "jwt-decode": "^2.2.0",
     "lodash": "^4.17.4",
+    "loopback-connector-sqlite": "^1.4.5",
+    "loopback-datasource-juggler": "^3.18.0",
     "morgan": "^1.9.0",
     "nanoid": "^1.0.1",
     "neo4j-driver": "^1.5.2",
@@ -80,6 +84,7 @@
     "eslint-plugin-jsx-a11y": "^6.0.2",
     "eslint-plugin-prettier": "^2.6.0",
     "eslint-plugin-react": "^7.5.1",
+    "eslint-watch": "^3.1.4",
     "husky": "^0.15.0-rc.6",
     "prettier": "^1.10.2"
   }

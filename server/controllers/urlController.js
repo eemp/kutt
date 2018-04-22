@@ -1,21 +1,11 @@
 const urlRegex = require('url-regex');
 const URL = require('url');
 const useragent = require('useragent');
-const geoip = require('geoip-lite');
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
-const {
-  createShortUrl,
-  createVisit,
-  findUrl,
-  getStats,
-  getUrls,
-  getCustomDomain,
-  setCustomDomain,
-  deleteCustomDomain,
-  deleteUrl,
-} = require('../db/url');
+const { getStats } = require('../models/url'); // TODO: fix
 const config = require('../config');
+const prepareResponse = require('../response-prep');
 
 const preservedUrls = [
   'login',
@@ -32,10 +22,10 @@ const preservedUrls = [
   'static',
   'images',
 ];
-
 exports.preservedUrls = preservedUrls;
 
-exports.urlShortener = async ({ body, user }, res) => {
+exports.urlShortener = async ({ app, body, user }, res) => {
+  const { Url } = app.models;
   if (!body.target) return res.status(400).json({ error: 'No target has been provided.' });
   if (body.target.length > 1024) {
     return res.status(400).json({ error: 'Maximum URL length is 1024.' });
@@ -57,37 +47,46 @@ exports.urlShortener = async ({ body, user }, res) => {
     if (body.customurl.length > 64) {
       return res.status(400).json({ error: 'Maximum custom URL length is 64.' });
     }
-    const urls = await findUrl({ id: body.customurl || '' });
+    const urls = await Url.find({ where: { short: body.customurl } });
     if (urls.length) {
-      const urlWithNoDomain = !user.domain && urls.some(url => !url.domain);
-      const urlWithDmoain = user.domain && urls.some(url => url.domain === user.domain);
-      if (urlWithNoDomain || urlWithDmoain) {
-        return res.status(400).json({ error: 'Custom URL is already in use.' });
-      }
+      return res.status(400).json({ error: 'Custom URL is already in use.' });
     }
   }
-  const isMalware = await axios.post(
-    `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${
-      config.GOOGLE_SAFE_BROWSING_KEY
-    }`,
-    {
-      client: {
-        clientId: config.DEFAULT_DOMAIN.toLowerCase().replace('.', ''),
-        clientVersion: '1.0.0',
-      },
-      threatInfo: {
-        threatTypes: ['MALWARE', 'SOCIAL_ENGINEERING'],
-        platformTypes: ['WINDOWS'],
-        threatEntryTypes: ['URL'],
-        threatEntries: [{ url: body.target }],
-      },
-    }
-  );
+  const isMalware =
+    config.GOOGLE_SAFE_BROWSING_KEY &&
+    (await axios
+      .post(
+        `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${
+          config.GOOGLE_SAFE_BROWSING_KEY
+        }`,
+        {
+          client: {
+            clientId: config.DEFAULT_DOMAIN.toLowerCase().replace('.', ''),
+            clientVersion: '1.0.0',
+          },
+          threatInfo: {
+            threatTypes: ['MALWARE', 'SOCIAL_ENGINEERING'],
+            platformTypes: ['WINDOWS'],
+            threatEntryTypes: ['URL'],
+            threatEntries: [{ url: body.target }],
+          },
+        }
+      ).then(data => data && data.matches)) // eslint-disable-line
   if (isMalware.data && isMalware.data.matches) {
     return res.status(400).json({ error: 'Malware detected!' });
   }
-  const url = await createShortUrl({ ...body, target, user });
-  return res.json(url);
+
+  const salt = body.password && (await bcrypt.genSalt(12));
+  const hash = body.password && (await bcrypt.hash(body.password, salt));
+  const response = await Url.create({
+    creator: user.email,
+    name: body.name,
+    password: hash,
+    short: body.customurl,
+    target,
+  });
+
+  return res.json(prepareResponse(response));
 };
 
 const browsersList = ['IE', 'Firefox', 'Chrome', 'Opera', 'Safari', 'Edge'];
@@ -99,16 +98,13 @@ const filterInOs = agent => item =>
   agent.os.family.toLowerCase().includes(item.toLocaleLowerCase());
 
 exports.goToUrl = async (req, res, next) => {
-  const { host } = req.headers;
+  const { Url, Visit } = req.app.models;
   const id = req.params.id || req.body.id;
-  const domain = host !== config.DEFAULT_DOMAIN && host;
   const agent = useragent.parse(req.headers['user-agent']);
   const [browser = 'Other'] = browsersList.filter(filterInBrowser(agent));
   const [os = 'Other'] = osList.filter(filterInOs(agent));
   const referrer = req.header('Referer') && URL.parse(req.header('Referer')).hostname;
-  const location = geoip.lookup(req.realIp);
-  const country = location && location.country;
-  const urls = await findUrl({ id, domain });
+  const urls = await Url.find({ where: { short: id } });
   const isBot =
     botList.some(bot => agent.source.toLowerCase().includes(bot)) || agent.family === 'Other';
   if (!urls && !urls.length) return next();
@@ -123,11 +119,9 @@ exports.goToUrl = async (req, res, next) => {
       return res.status(401).json({ error: 'Password is not correct' });
     }
     if (url.user && !isBot) {
-      await createVisit({
+      await Visit.create({
         browser,
-        country: country || 'Unknown',
-        domain,
-        id: url.id,
+        url: url.short,
         os,
         referrer: referrer || 'Direct',
       });
@@ -135,11 +129,9 @@ exports.goToUrl = async (req, res, next) => {
     return res.status(200).json({ target: url.target });
   }
   if (url.user && !isBot) {
-    await createVisit({
+    await Visit.create({
       browser,
-      country: country || 'Unknown',
-      domain,
-      id: url.id,
+      url: url.short,
       os,
       referrer: referrer || 'Direct',
     });
@@ -147,51 +139,25 @@ exports.goToUrl = async (req, res, next) => {
   return res.redirect(url.target);
 };
 
-exports.getUrls = async ({ query, user }, res) => {
-  const urlsList = await getUrls({ options: query, user });
+exports.getUrls = async ({ app, query }, res) => {
+  const { Url } = app.models;
+  const urlsList = await Url.find({
+    where: {
+      or: [{ short: { like: query } }, { target: { like: query } }],
+    },
+  });
   return res.json(urlsList);
 };
 
-exports.setCustomDomain = async ({ body: { customDomain }, user }, res) => {
-  if (customDomain.length > 40) {
-    return res.status(400).json({ error: 'Maximum custom domain length is 40.' });
-  }
-  if (customDomain === config.DEFAULT_DOMAIN) {
-    return res.status(400).json({ error: "You can't use default domain." });
-  }
-  const isValidDomain = urlRegex({ exact: true, strict: false }).test(customDomain);
-  if (!isValidDomain) return res.status(400).json({ error: 'Domain is not valid.' });
-  const isOwned = await getCustomDomain({ customDomain });
-  if (isOwned && isOwned.email !== user.email) {
-    return res
-      .status(400)
-      .json({ error: 'Domain is already taken. Contact us for multiple users.' });
-  }
-  const userCustomDomain = await setCustomDomain({ user, customDomain });
-  if (userCustomDomain) return res.status(201).json({ customDomain: userCustomDomain.name });
-  return res.status(400).json({ error: "Couldn't set custom domain." });
-};
-
-exports.deleteCustomDomain = async ({ user }, res) => {
-  const response = await deleteCustomDomain({ user });
-  if (response) return res.status(200).json({ message: 'Domain deleted successfully' });
-  return res.status(400).json({ error: "Couldn't delete custom domain." });
-};
-
-exports.deleteUrl = async ({ body: { id, domain }, user }, res) => {
+exports.deleteUrl = ({ app, body: { id } }, res) => {
+  const { Url } = app.models;
   if (!id) return res.status(400).json({ error: 'No id has been provided.' });
-  const customDomain = domain !== config.DEFAULT_DOMAIN && domain;
-  const urls = await findUrl({ id, domain: customDomain });
-  if (!urls && !urls.length) return res.status(400).json({ error: "Couldn't find the short URL." });
-  const response = await deleteUrl({ id, domain: customDomain, user });
-  if (response) return res.status(200).json({ message: 'Sort URL deleted successfully' });
-  return res.status(400).json({ error: "Couldn't delete short URL." });
+  return Url.destroyById(id);
 };
 
-exports.getStats = async ({ query: { id, domain }, user }, res) => {
-  if (!id) return res.status(400).json({ error: 'No id has been provided.' });
-  const customDomain = domain !== config.DEFAULT_DOMAIN && domain;
-  const stats = await getStats({ id, domain: customDomain, user });
+exports.getStats = async ({ query: { short }, user }, res) => {
+  if (!short) return res.status(400).json({ error: 'No url short has been provided.' });
+  const stats = await getStats({ short, user });
   if (!stats) return res.status(400).json({ error: 'Could not get the short URL stats.' });
   return res.status(200).json(stats);
 };

@@ -1,3 +1,5 @@
+const _ = require('lodash');
+const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const passport = require('passport');
@@ -7,14 +9,12 @@ const config = require('../config');
 const transporter = require('../mail/mail');
 const { resetMailText, verifyMailText } = require('../mail/text');
 const {
-  createUser,
   changePassword,
   generateApiKey,
-  getUser,
   verifyUser,
   requestPasswordReset,
   resetPassword,
-} = require('../db/user');
+} = require('../models/user'); // TODO: fix
 
 /* Read email template */
 const resetEmailTemplatePath = path.join(__dirname, '../mail/template-reset.html');
@@ -59,18 +59,20 @@ exports.authApikey = authenticate('localapikey', 'API key is not correct.', fals
 /* reCaptcha controller */
 exports.recaptcha = async (req, res, next) => {
   if (!req.user) {
-    const isReCaptchaValid = !config.RECAPTCHA_SECRET_KEY || await axios({
-      method: 'post',
-      url: 'https://www.google.com/recaptcha/api/siteverify',
-      headers: {
-        'Content-type': 'application/x-www-form-urlencoded',
-      },
-      params: {
-        secret: config.RECAPTCHA_SECRET_KEY,
-        response: req.body.reCaptchaToken,
-        remoteip: req.realIp,
-      },
-    }).then(data => _.get(data, 'success'));
+    const isReCaptchaValid =
+      !config.RECAPTCHA_SECRET_KEY ||
+      (await axios({
+        method: 'post',
+        url: 'https://www.google.com/recaptcha/api/siteverify',
+        headers: {
+          'Content-type': 'application/x-www-form-urlencoded',
+        },
+        params: {
+          secret: config.RECAPTCHA_SECRET_KEY,
+          response: req.body.reCaptchaToken,
+          remoteip: req.realIp,
+        },
+      }).then(data => _.get(data, 'success')));
     if (!isReCaptchaValid) {
       return res.status(401).json({ error: 'reCAPTCHA is not valid. Try again.' });
     }
@@ -79,6 +81,7 @@ exports.recaptcha = async (req, res, next) => {
 };
 
 exports.signup = async (req, res) => {
+  const { User } = req.app.models;
   const { email, password } = req.body;
   if (password.length > 64) {
     return res.status(400).json({ error: 'Maximum password length is 64.' });
@@ -86,9 +89,11 @@ exports.signup = async (req, res) => {
   if (email.length > 64) {
     return res.status(400).json({ error: 'Maximum email length is 64.' });
   }
-  const user = await getUser({ email });
+  const user = await User.findOne({ email });
   if (user && user.verified) return res.status(403).json({ error: 'Email is already in use.' });
-  const newUser = await createUser({ email, password });
+  const salt = await bcrypt.genSalt(12);
+  const hash = await bcrypt.hash(password, salt);
+  const newUser = await User.create({ email, password: hash });
   const mail = await transporter.sendMail({
     from: config.MAIL_USER,
     to: newUser.email,
