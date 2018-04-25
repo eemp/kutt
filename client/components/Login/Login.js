@@ -40,12 +40,6 @@ const VerificationMsg = styled.p`
   font-weight: 300;
 `;
 
-const User = styled.span`
-  font-weight: normal;
-  color: #512da8;
-  border-bottom: 1px dotted #999;
-`;
-
 const ForgetPassLink = styled.a`
   align-self: flex-start;
   margin: -24px 0 32px;
@@ -104,10 +98,8 @@ class Login extends Component {
   render() {
     return (
       <Wrapper>
-        {this.props.auth.sentVerification ? (
-          <VerificationMsg>
-            A verification email has been sent to <User>{this.props.auth.user}</User>.
-          </VerificationMsg>
+        {this.props.auth.confirmSignup ? (
+          <VerificationMsg>{this.props.auth.message}</VerificationMsg>
         ) : (
           <LoginBox id="login-form" onSubmit={this.loginHandler}>
             <LoginInputLabel htmlFor="email" test="test">
@@ -146,8 +138,8 @@ class Login extends Component {
 
 Login.propTypes = {
   auth: PropTypes.shape({
-    sentVerification: PropTypes.bool.isRequired,
-    user: PropTypes.string.isRequired,
+    confirmSignup: PropTypes.bool.isRequired,
+    message: PropTypes.string.isRequired,
   }).isRequired,
   loading: PropTypes.shape({
     login: PropTypes.bool.isRequired,

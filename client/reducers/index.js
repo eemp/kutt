@@ -131,7 +131,7 @@ const loading = (state = loadingInitialState, action) => {
 /* User authentication */
 const authInitialState = {
   isAuthenticated: false,
-  sentVerification: false,
+  confirmSignup: false,
   user: '',
   renew: false,
 };
@@ -143,14 +143,14 @@ const auth = (state = authInitialState, action) => {
         ...state,
         isAuthenticated: true,
         user: action.payload,
-        sentVerification: false,
+        confirmSignup: false,
       };
     case types.AUTH_RENEW:
       return { ...state, renew: true };
     case types.UNAUTH_USER:
       return authInitialState;
-    case types.SENT_VERIFICATION:
-      return { ...state, sentVerification: true, user: action.payload };
+    case types.CONFIRM_SIGNUP:
+      return { ...state, confirmSignup: true, message: action.payload };
     default:
       return state;
   }

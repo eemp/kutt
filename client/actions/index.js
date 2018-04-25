@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import Router from 'next/router';
 import axios from 'axios';
 import cookie from 'js-cookie';
@@ -84,7 +85,7 @@ export const generateApiKey = () => dispatch => {
 /* Login & signup actions */
 export const authUser = payload => ({ type: types.AUTH_USER, payload });
 export const unauthUser = () => ({ type: types.UNAUTH_USER });
-export const sentVerification = payload => ({ type: types.SENT_VERIFICATION, payload });
+export const confirmSignup = payload => ({ type: types.CONFIRM_SIGNUP, payload });
 export const showAuthError = payload => ({ type: types.AUTH_ERROR, payload });
 export const showLoginLoading = () => ({ type: types.LOGIN_LOADING });
 export const showSignupLoading = () => ({ type: types.SIGNUP_LOADING });
@@ -95,10 +96,9 @@ export const signupUser = body => dispatch => {
   return axios
     .post('/api/auth/signup', body)
     .then(res => {
-      const { email } = res.data;
-      dispatch(sentVerification(email));
+      dispatch(confirmSignup(_.get(res, 'data.message')));
     })
-    .catch(err => dispatch(showAuthError(err.response.data.error)));
+    .catch(err => dispatch(showAuthError(_.get(err, 'response.data.error'))));
 };
 
 export const loginUser = body => dispatch => {
