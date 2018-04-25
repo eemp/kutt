@@ -1,3 +1,5 @@
+const _ = require('lodash');
+const Promise = require('bluebird');
 const urlRegex = require('url-regex');
 const URL = require('url');
 const useragent = require('useragent');
@@ -104,11 +106,10 @@ exports.goToUrl = async (req, res, next) => {
   const [browser = 'Other'] = browsersList.filter(filterInBrowser(agent));
   const [os = 'Other'] = osList.filter(filterInOs(agent));
   const referrer = req.header('Referer') && URL.parse(req.header('Referer')).hostname;
-  const urls = await Url.find({ where: { short: id } });
+  const url = await Url.findOne({ where: { short: id } });
   const isBot =
     botList.some(bot => agent.source.toLowerCase().includes(bot)) || agent.family === 'Other';
-  if (!urls && !urls.length) return next();
-  const [url] = urls;
+  if (!url) return next();
   if (url.password && !req.body.password) {
     req.protectedUrl = id;
     return next();
@@ -139,12 +140,22 @@ exports.goToUrl = async (req, res, next) => {
   return res.redirect(url.target);
 };
 
-exports.getUrls = async ({ app, query }, res) => {
+exports.getUrls = async ({ app, query, user }, res) => {
   const { Url } = app.models;
-  const urlsList = await Url.find({
-    where: {
-      or: [{ short: { like: query } }, { target: { like: query } }],
-    },
+  const { count, page, search = '' } = query;
+  const filter = {
+    and: _.concat(
+      [{ creator: user.id }],
+      search ? { or: [{ short: { like: search } }, { target: { like: search } }] } : []
+    ),
+  };
+  const urlsList = await Promise.props({
+    list: Url.find({
+      limit: count,
+      skip: page * count,
+      where: filter,
+    }),
+    countAll: Url.count(filter),
   });
   return res.json(urlsList);
 };
