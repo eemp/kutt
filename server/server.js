@@ -8,12 +8,9 @@ const bodyParser = require('body-parser');
 const passport = require('passport');
 const { URL } = require('url');
 
-const { validateBody, validationCriterias } = require('./controllers/validateBodyController');
 const auth = require('./controllers/authController');
 const url = require('./controllers/urlController');
 const config = require('./config');
-
-require('./passport');
 
 if (config.RAVEN_DSN) {
   Raven.config(config.RAVEN_DSN).install();
@@ -42,6 +39,8 @@ const defineModels = require('./defineModels');
 app.prepare().then(() => {
   const server = express();
   server.models = defineModels(dataSource);
+
+  require('./passport')(server.models.User); // eslint-disable-line
 
   server.set('trust proxy', true);
   server.use(helmet());
@@ -88,8 +87,8 @@ app.prepare().then(() => {
   );
 
   /* User and authentication */
-  server.post('/api/auth/signup', validationCriterias, validateBody, catchErrors(auth.signup));
-  server.post('/api/auth/login', validationCriterias, validateBody, auth.authLocal, auth.login);
+  server.post('/api/auth/signup', catchErrors(auth.signup));
+  server.post('/api/auth/login', auth.authLocal, auth.login);
   server.post('/api/auth/renew', auth.authJwt, auth.renew);
   server.post('/api/auth/changepassword', auth.authJwt, catchErrors(auth.changePassword));
   server.post('/api/auth/generateapikey', auth.authJwt, catchErrors(auth.generateApiKey));
